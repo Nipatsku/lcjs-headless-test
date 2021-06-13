@@ -1,16 +1,19 @@
 const { lightningChart, renderToPNG } = require("@arction/lcjs-headless");
 const {
-  PointShape,
   PalettedFill,
   LUT,
   ColorRGBA,
-  emptyFill,
+  IntensitySeriesTypes,
 } = require("@arction/lcjs");
 const { PNG } = require("pngjs");
+const { createWaterDropDataGenerator } = require("@arction/xydata");
 const fs = require("fs");
 
 (async () => {
-  const dataPointsCount = 50 * 1000 * 1000;
+  const dataDimensions = {
+    width: 2500,
+    height: 2500,
+  };
   const resultSize = {
     width: 1920,
     height: 1080,
@@ -20,29 +23,34 @@ const fs = require("fs");
   const lcjs = lightningChart();
   const chart = lcjs
     .ChartXY()
-    .setPadding({ right: 40 })
-    .setTitleFillStyle(emptyFill);
+    .setTitle(`Heatmap Grid (${dataDimensions.width}x${dataDimensions.height})`)
+    .setPadding({ right: 40 });
   const axisX = chart.getDefaultAxisX().setTitle("X Axis");
   const axisY = chart.getDefaultAxisX().setTitle("Y Axis");
   const series = chart
-    .addPointSeries({
-      pointShape: PointShape.Circle,
+    .addHeatmapSeries({
+      type: IntensitySeriesTypes.Grid,
+      columns: dataDimensions.width,
+      rows: dataDimensions.height,
+      pixelate: true,
+      start: { x: -1, y: -1 },
+      end: { x: 1, y: 1 },
     })
-    .setPointFillStyle(
+    .setFillStyle(
       new PalettedFill({
         lookUpProperty: "value",
         lut: new LUT({
           interpolate: true,
           steps: [
-            { value: 0, color: ColorRGBA(255, 215, 0) },
-            { value: 80, color: ColorRGBA(255, 0, 0) },
-            { value: 100, color: ColorRGBA(0, 0, 255) },
+            { value: 0.0, label: "0.00", color: ColorRGBA(0, 0, 0) },
+            { value: 0.25, label: "0.25", color: ColorRGBA(255, 215, 0) },
+            { value: 0.5, label: "0.50", color: ColorRGBA(255, 0, 0) },
+            { value: 0.75, label: "0.75", color: ColorRGBA(0, 0, 255) },
+            { value: 1.0, label: "1.00", color: ColorRGBA(63, 0, 255) },
           ],
         }),
       })
-    )
-    .setIndividualPointSizeEnabled(true)
-    .setIndividualPointValueEnabled(true);
+    );
 
   chart.engine.renderFrame(resultSize.width, resultSize.height);
 
@@ -51,46 +59,25 @@ const fs = require("fs");
   console.timeEnd("create chart");
 
   console.time("generate test data");
-  const rand = (min, max) => min + Math.random() * (max - min);
   axisX.setInterval(-1, 1, false, true);
   axisY.setInterval(-1, 1, false, true);
-  let existingDataPointsCount = 0;
-  do {
-    let dataPoints = [];
-    for (
-      let i = 0;
-      i < Math.min(dataPointsCount - existingDataPointsCount, 10 * 1000 * 1000);
-      i += 1
-    ) {
-      const x = Math.random() * 2 - 1;
-      const y = Math.random() * 2 - 1;
-      const diff = { x: 0 - x, y: 0 - y };
-      const distance = Math.sqrt(diff.x ** 2 + diff.y ** 2);
-      const value = rand(0, 100 - distance * 100);
-      const size = Math.max(value / (100 / 2), 0);
-      if (size > 0) {
-        const dataPoint = { x, y, value, size };
-        dataPoints.push(dataPoint);
-      }
-    }
-    existingDataPointsCount += dataPoints.length;
-    console.log(`append chunk (${dataPoints.length})`);
-    series.add(dataPoints);
-    dataPoints = [];
-
-    const memory = process.memoryUsage();
-    console.log(
-      `waiting | existing data amount: ${existingDataPointsCount} | mem ${(
-        memory.heapTotal /
-        1024 ** 2
-      ).toFixed(1)} MB`
-    );
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  } while (existingDataPointsCount < dataPointsCount);
-
+  const rand = (min, max) => min + Math.random() * (max - min);
+  const waterDropsConfig = new Array(25).fill(0).map((_) => ({
+    rowNormalized: Math.random(),
+    columnNormalized: Math.random(),
+    amplitude: Math.random(),
+  }));
+  const data = await createWaterDropDataGenerator()
+    .setColumns(dataDimensions.width)
+    .setRows(dataDimensions.height)
+    .setOffsetLevel(0.1)
+    .setVolatility(20)
+    .setWaterDrops(waterDropsConfig)
+    .generate();
   console.timeEnd("generate test data");
 
   console.time("render chart");
+  series.invalidateValuesOnly(data);
   const frame = renderToPNG(chart, resultSize.width, resultSize.height);
   console.timeEnd("render chart");
 

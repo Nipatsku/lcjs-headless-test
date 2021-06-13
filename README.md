@@ -1,6 +1,16 @@
+# LightningChart JS server side rendering test
 
+Simple `Node.js` script that generates random test data and renders it with `LightningChart JS`, a hardware accelerated data visualization library.
 
+![screenshot](heatmap-2500x2500.png "Chart")
 
-## pngjs
+The rendered chart is saved into a local file `frame.png`.
 
-`pngjs` dependency is only used for debugging (saving rendered chart to png file).
+Usage:
+
+```bash
+npm i
+npm start
+```
+
+Learn more about `LightningChart JS` [here](https://www.arction.com/lightningchart-js/).
