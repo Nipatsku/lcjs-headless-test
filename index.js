@@ -8,10 +8,9 @@ const {
 } = require("@arction/lcjs");
 const { PNG } = require("pngjs");
 const fs = require("fs");
-const { time } = require("console");
 
 (async () => {
-  const dataPointsCount = 1 * 1000 * 1000;
+  const dataPointsCount = 50 * 1000 * 1000;
   const resultSize = {
     width: 1920,
     height: 1080,
@@ -55,24 +54,41 @@ const { time } = require("console");
   const rand = (min, max) => min + Math.random() * (max - min);
   axisX.setInterval(-1, 1, false, true);
   axisY.setInterval(-1, 1, false, true);
-  const dataPoints = [];
-  for (let i = 0; i < dataPointsCount; i += 1) {
-    const x = Math.random() * 2 - 1;
-    const y = Math.random() * 2 - 1;
-    const diff = { x: 0 - x, y: 0 - y };
-    const distance = Math.sqrt(diff.x ** 2 + diff.y ** 2);
-    const value = rand(0, 100 - distance * 100);
-    const size = Math.max(value / (100 / 2), 0);
-    if (size > 0) {
-      const dataPoint = { x, y, value, size };
-      dataPoints.push(dataPoint);
+  let existingDataPointsCount = 0;
+  do {
+    let dataPoints = [];
+    for (
+      let i = 0;
+      i < Math.min(dataPointsCount - existingDataPointsCount, 10 * 1000 * 1000);
+      i += 1
+    ) {
+      const x = Math.random() * 2 - 1;
+      const y = Math.random() * 2 - 1;
+      const diff = { x: 0 - x, y: 0 - y };
+      const distance = Math.sqrt(diff.x ** 2 + diff.y ** 2);
+      const value = rand(0, 100 - distance * 100);
+      const size = Math.max(value / (100 / 2), 0);
+      if (size > 0) {
+        const dataPoint = { x, y, value, size };
+        dataPoints.push(dataPoint);
+      }
     }
-  }
-  console.timeEnd("generate test data");
+    existingDataPointsCount += dataPoints.length;
+    console.log(`append chunk (${dataPoints.length})`);
+    series.add(dataPoints);
+    dataPoints = [];
 
-  console.time("append data to series");
-  series.add(dataPoints);
-  console.timeEnd("append data to series");
+    const memory = process.memoryUsage();
+    console.log(
+      `waiting | existing data amount: ${existingDataPointsCount} | mem ${(
+        memory.heapTotal /
+        1024 ** 2
+      ).toFixed(1)} MB`
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  } while (existingDataPointsCount < dataPointsCount);
+
+  console.timeEnd("generate test data");
 
   console.time("render chart");
   const frame = renderToPNG(chart, resultSize.width, resultSize.height);
