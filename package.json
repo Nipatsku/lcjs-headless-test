@@ -1,0 +1,16 @@
+{
+  "name": "lcjs-headless-test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@arction/lcjs": "^3.0.1",
+    "@arction/lcjs-headless": "^1.3.0",
+    "pngjs": "^6.0.0"
+  }
+}
